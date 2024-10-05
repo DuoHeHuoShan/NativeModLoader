@@ -8,13 +8,6 @@
 #include <map>
 #include <string>
 #include <fstream>
-#include <unistd.h>
-
-struct Vector2
-{
-    float x;
-    float y;
-};
 
 std::map<std::string, std::string> HFFSettings;
 
@@ -57,7 +50,6 @@ void UseDefaultSettings() {
 }
 
 void ReadSettings() {
-    char *buffer = getcwd(nullptr, 0);
     std::string workDir = GetWorkDir();
     std::fstream settingsFile;
     settingsFile.open(workDir + "/HFFSettings.txt", std::ios_base::in);
