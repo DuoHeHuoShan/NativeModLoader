@@ -15,9 +15,15 @@ BNM::Class HumanControls;
 BNM::MethodBase HumanControls_ReadInput;
 BNM::Field<float> HumanControl_lookHScale;
 BNM::Field<float> HumanControl_lookVScale;
+BNM::Class Ball;
+BNM::MethodBase Ball_OnEnable;
+BNM::Class GameObject;
+BNM::Method<BNM::UnityEngine::Object *> GameObject_Find;
+BNM::Method<void> GameObject_SetActive;
 
 float lookHScale = 12;
 float lookVScale = 5;
+bool visibleBall = false;
 
 void (*old_ReadInput)(BNM::UnityEngine::Object *, void *);
 void new_ReadInput(BNM::UnityEngine::Object *thiz, void *outInputState) {
@@ -26,13 +32,31 @@ void new_ReadInput(BNM::UnityEngine::Object *thiz, void *outInputState) {
     old_ReadInput(thiz, outInputState);
 }
 
+void (*old_Ball_OnEnable)(BNM::UnityEngine::Object *);
+void new_Ball_OnEnable(BNM::UnityEngine::Object *thiz) {
+    old_Ball_OnEnable(thiz);
+    if(visibleBall) GameObject_SetActive[GameObject_Find(BNM::CreateMonoString("/Player(Clone)/Ball/Sphere"))](true);
+}
+
 void OnLoaded() {
     using namespace BNM;
     HumanControls = Class("", "HumanControls");
     HumanControls_ReadInput = HumanControls.GetMethod("ReadInput");
     HumanControl_lookHScale = HumanControls.GetField("lookHScale");
     HumanControl_lookVScale = HumanControls.GetField("lookVScale");
+    Ball = BNM::Class("", "Ball");
+    Ball_OnEnable = Ball.GetMethod("OnEnable");
+    GameObject = BNM::Class("UnityEngine", "GameObject");
+    GameObject_Find = GameObject.GetMethod("Find");
+    GameObject_SetActive = GameObject.GetMethod("SetActive");
+
+    InvokeHook(Ball_OnEnable, new_Ball_OnEnable, old_Ball_OnEnable);
     HOOK(HumanControls_ReadInput, new_ReadInput, old_ReadInput);
+}
+
+bool stob(const std::string &str) {
+    if(str == "true") return true;
+    return false;
 }
 
 std::string GetWorkDir() {
@@ -47,14 +71,15 @@ std::string GetWorkDir() {
 void UseDefaultSettings() {
     HFFSettings["lookHScale"] = "12";
     HFFSettings["lookVScale"] = "5";
+    HFFSettings["visibleBall"] = "false";
 }
 
 void ReadSettings() {
+    UseDefaultSettings();
     std::string workDir = GetWorkDir();
     std::fstream settingsFile;
     settingsFile.open(workDir + "/HFFSettings.txt", std::ios_base::in);
     if(!settingsFile) {
-        UseDefaultSettings();
         BNM_LOG_ERR("%s", "Could not open settings file!");
         return;
     }
@@ -84,6 +109,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, [[maybe_unused]] void *reserved) {
     ReadSettings();
     lookHScale = std::stof(HFFSettings["lookHScale"]);
     lookVScale = std::stof(HFFSettings["lookVScale"]);
+    visibleBall = stob(HFFSettings["visibleBall"]);
 
     return JNI_VERSION_1_6;
 }
