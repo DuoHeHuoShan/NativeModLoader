@@ -29,6 +29,7 @@ float lookHScale = 12;
 float lookVScale = 5;
 bool visibleBall = false;
 bool localSave = false;
+bool disableShadows = false;
 
 void (*old_ReadInput)(BNM::UnityEngine::Object *, void *);
 void new_ReadInput(BNM::UnityEngine::Object *thiz, void *outInputState) {
@@ -40,6 +41,7 @@ void new_ReadInput(BNM::UnityEngine::Object *thiz, void *outInputState) {
 void (*old_Ball_OnEnable)(BNM::UnityEngine::Object *);
 void new_Ball_OnEnable(BNM::UnityEngine::Object *thiz) {
     old_Ball_OnEnable(thiz);
+    if(disableShadows) ((void(*)(float))BNM::GetExternMethod("UnityEngine.QualitySettings::set_shadowDistance"))(0);
     if(visibleBall) GameObject_SetActive[GameObject_Find(BNM::CreateMonoString("/Player(Clone)/Ball/Sphere"))](true);
 }
 
@@ -106,6 +108,7 @@ void UseDefaultSettings() {
     HFFSettings["lookVScale"] = "5";
     HFFSettings["visibleBall"] = "false";
     HFFSettings["localSave"] = "false";
+    HFFSettings["disableShadows"] = "false";
 }
 
 void ReadSettings() {
@@ -145,6 +148,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, [[maybe_unused]] void *reserved) {
     lookVScale = std::stof(HFFSettings["lookVScale"]);
     visibleBall = stob(HFFSettings["visibleBall"]);
     localSave = stob(HFFSettings["localSave"]);
+    disableShadows = stob(HFFSettings["disableShadows"]);
 
     return JNI_VERSION_1_6;
 }
