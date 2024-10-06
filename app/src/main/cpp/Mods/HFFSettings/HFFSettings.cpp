@@ -20,10 +20,15 @@ BNM::MethodBase Ball_OnEnable;
 BNM::Class GameObject;
 BNM::Method<BNM::UnityEngine::Object *> GameObject_Find;
 BNM::Method<void> GameObject_SetActive;
+BNM::Class GamePlayerPrefs;
+BNM::MethodBase GamePlayerPrefs_GetInt, GamePlayerPrefs_SetInt, GamePlayerPrefs_GetFloat, GamePlayerPrefs_SetFloat, GamePlayerPrefs_GetString, GamePlayerPrefs_SetString;
+BNM::Class UnityPlayerPrefs;
+BNM::MethodBase UnityPlayerPrefs_GetInt, UnityPlayerPrefs_SetInt, UnityPlayerPrefs_GetFloat, UnityPlayerPrefs_SetFloat, UnityPlayerPrefs_GetString, UnityPlayerPrefs_SetString;
 
 float lookHScale = 12;
 float lookVScale = 5;
 bool visibleBall = false;
+bool localSave = false;
 
 void (*old_ReadInput)(BNM::UnityEngine::Object *, void *);
 void new_ReadInput(BNM::UnityEngine::Object *thiz, void *outInputState) {
@@ -38,6 +43,33 @@ void new_Ball_OnEnable(BNM::UnityEngine::Object *thiz) {
     if(visibleBall) GameObject_SetActive[GameObject_Find(BNM::CreateMonoString("/Player(Clone)/Ball/Sphere"))](true);
 }
 
+void ApplyLocalSave() {
+    using namespace BNM;
+    GamePlayerPrefs = Class("Mobile.SaveGameSystem", "PlayerPrefs");
+    UnityPlayerPrefs = Class("UnityEngine", "PlayerPrefs");
+
+    GamePlayerPrefs_GetInt = GamePlayerPrefs.GetMethod("GetInt");
+    GamePlayerPrefs_SetInt = GamePlayerPrefs.GetMethod("SetInt");
+    GamePlayerPrefs_GetFloat = GamePlayerPrefs.GetMethod("GetFloat");
+    GamePlayerPrefs_SetFloat = GamePlayerPrefs.GetMethod("SetFloat");
+    GamePlayerPrefs_GetString = GamePlayerPrefs.GetMethod("GetString");
+    GamePlayerPrefs_SetString = GamePlayerPrefs.GetMethod("SetString");
+
+    UnityPlayerPrefs_GetInt = UnityPlayerPrefs.GetMethod("GetInt");
+    UnityPlayerPrefs_SetInt = UnityPlayerPrefs.GetMethod("SetInt");
+    UnityPlayerPrefs_GetFloat = UnityPlayerPrefs.GetMethod("GetFloat");
+    UnityPlayerPrefs_SetFloat = UnityPlayerPrefs.GetMethod("SetFloat");
+    UnityPlayerPrefs_GetString = UnityPlayerPrefs.GetMethod("GetString");
+    UnityPlayerPrefs_SetString = UnityPlayerPrefs.GetMethod("SetString");
+
+    HOOK(GamePlayerPrefs_GetInt, UnityPlayerPrefs_GetInt.GetInfo()->methodPointer, nullptr);
+    HOOK(GamePlayerPrefs_SetInt, UnityPlayerPrefs_SetInt.GetInfo()->methodPointer, nullptr);
+    HOOK(GamePlayerPrefs_GetFloat, UnityPlayerPrefs_GetFloat.GetInfo()->methodPointer, nullptr);
+    HOOK(GamePlayerPrefs_SetFloat, UnityPlayerPrefs_SetFloat.GetInfo()->methodPointer, nullptr);
+    HOOK(GamePlayerPrefs_GetString, UnityPlayerPrefs_GetString.GetInfo()->methodPointer, nullptr);
+    HOOK(GamePlayerPrefs_SetString, UnityPlayerPrefs_SetString.GetInfo()->methodPointer, nullptr);
+}
+
 void OnLoaded() {
     using namespace BNM;
     HumanControls = Class("", "HumanControls");
@@ -49,6 +81,7 @@ void OnLoaded() {
     GameObject = BNM::Class("UnityEngine", "GameObject");
     GameObject_Find = GameObject.GetMethod("Find");
     GameObject_SetActive = GameObject.GetMethod("SetActive");
+    if(localSave) ApplyLocalSave();
 
     InvokeHook(Ball_OnEnable, new_Ball_OnEnable, old_Ball_OnEnable);
     HOOK(HumanControls_ReadInput, new_ReadInput, old_ReadInput);
@@ -72,6 +105,7 @@ void UseDefaultSettings() {
     HFFSettings["lookHScale"] = "12";
     HFFSettings["lookVScale"] = "5";
     HFFSettings["visibleBall"] = "false";
+    HFFSettings["localSave"] = "false";
 }
 
 void ReadSettings() {
@@ -110,6 +144,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, [[maybe_unused]] void *reserved) {
     lookHScale = std::stof(HFFSettings["lookHScale"]);
     lookVScale = std::stof(HFFSettings["lookVScale"]);
     visibleBall = stob(HFFSettings["visibleBall"]);
+    localSave = stob(HFFSettings["localSave"]);
 
     return JNI_VERSION_1_6;
 }
