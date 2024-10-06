@@ -4,5 +4,5 @@ project(NativeModLoader)
 
 add_subdirectory(ByNameModding EXCLUDE_FROM_ALL)
 add_subdirectory(Mods/HFFSkipSplashScreen)
-# add_subdirectory(Mods/HFFLevelSelect)
+ add_subdirectory(Mods/HFFLevelSelect)
 add_subdirectory(Mods/HFFSettings)
