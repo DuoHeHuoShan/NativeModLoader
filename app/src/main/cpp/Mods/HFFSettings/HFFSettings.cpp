@@ -5,6 +5,7 @@
 #include "BNM/Method.hpp"
 #include "BNM/Utils.hpp"
 #include "BNM/Field.hpp"
+#include "BNM/UnityStructures.hpp"
 #include <map>
 #include <string>
 #include <fstream>
@@ -13,8 +14,9 @@ std::map<std::string, std::string> HFFSettings;
 
 BNM::Class HumanControls;
 BNM::MethodBase HumanControls_ReadInput;
-BNM::Field<float> HumanControl_lookHScale;
-BNM::Field<float> HumanControl_lookVScale;
+BNM::MethodBase HumanControls_get_calc_joyWalk;
+BNM::Field<float> HumanControls_lookHScale;
+BNM::Field<float> HumanControls_lookVScale;
 BNM::Class Ball;
 BNM::MethodBase Ball_OnEnable;
 BNM::Class GameObject;
@@ -30,11 +32,12 @@ float lookVScale = 5;
 bool visibleBall = false;
 bool localSave = false;
 bool disableShadows = false;
+bool joystickFix = false;
 
 void (*old_ReadInput)(BNM::UnityEngine::Object *, void *);
 void new_ReadInput(BNM::UnityEngine::Object *thiz, void *outInputState) {
-    HumanControl_lookHScale[thiz].Set(lookHScale);
-    HumanControl_lookVScale[thiz].Set(lookVScale);
+    HumanControls_lookHScale[thiz].Set(lookHScale);
+    HumanControls_lookVScale[thiz].Set(lookVScale);
     old_ReadInput(thiz, outInputState);
 }
 
@@ -44,6 +47,15 @@ void new_Ball_OnEnable(BNM::UnityEngine::Object *thiz) {
     if(disableShadows) ((void(*)(float))BNM::GetExternMethod("UnityEngine.QualitySettings::set_shadowDistance"))(0);
     if(visibleBall) GameObject_SetActive[GameObject_Find(BNM::CreateMonoString("/Player(Clone)/Ball/Sphere"))](true);
 }
+
+BNM::Structures::Unity::Vector3 (*old_HumanControls_get_calc_joyWalk)(BNM::UnityEngine::Object *);
+BNM::Structures::Unity::Vector3 new_HumanControls_get_calc_joyWalk(BNM::UnityEngine::Object *thiz) {
+    BNM::Structures::Unity::Vector3 ret = old_HumanControls_get_calc_joyWalk(thiz);
+    ret.x = round(ret.x);
+    ret.z = round(ret.z);
+    return ret;
+}
+
 
 void ApplyLocalSave() {
     using namespace BNM;
@@ -76,17 +88,18 @@ void OnLoaded() {
     using namespace BNM;
     HumanControls = Class("", "HumanControls");
     HumanControls_ReadInput = HumanControls.GetMethod("ReadInput");
-    HumanControl_lookHScale = HumanControls.GetField("lookHScale");
-    HumanControl_lookVScale = HumanControls.GetField("lookVScale");
+    HumanControls_lookHScale = HumanControls.GetField("lookHScale");
+    HumanControls_lookVScale = HumanControls.GetField("lookVScale");
+    HumanControls_get_calc_joyWalk = HumanControls.GetMethod("get_calc_joyWalk");
     Ball = BNM::Class("", "Ball");
     Ball_OnEnable = Ball.GetMethod("OnEnable");
     GameObject = BNM::Class("UnityEngine", "GameObject");
     GameObject_Find = GameObject.GetMethod("Find");
     GameObject_SetActive = GameObject.GetMethod("SetActive");
     if(localSave) ApplyLocalSave();
-
     InvokeHook(Ball_OnEnable, new_Ball_OnEnable, old_Ball_OnEnable);
     HOOK(HumanControls_ReadInput, new_ReadInput, old_ReadInput);
+    if(joystickFix) HOOK(HumanControls_get_calc_joyWalk, new_HumanControls_get_calc_joyWalk, old_HumanControls_get_calc_joyWalk);
 }
 
 bool stob(const std::string &str) {
@@ -109,6 +122,7 @@ void UseDefaultSettings() {
     HFFSettings["visibleBall"] = "false";
     HFFSettings["localSave"] = "false";
     HFFSettings["disableShadows"] = "false";
+    HFFSettings["joystickFix"] = "false";
 }
 
 void ReadSettings() {
@@ -149,6 +163,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, [[maybe_unused]] void *reserved) {
     visibleBall = stob(HFFSettings["visibleBall"]);
     localSave = stob(HFFSettings["localSave"]);
     disableShadows = stob(HFFSettings["disableShadows"]);
+    joystickFix = stob(HFFSettings["joystickFix"]);
 
     return JNI_VERSION_1_6;
 }
